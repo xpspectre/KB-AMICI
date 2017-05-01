@@ -69,7 +69,7 @@ title('A + B <-> C Forward Sensitivities')
 
 %% Adjoint sensitivities with some test data
 % Test data from KroneckerBio
-output_list   = [1    1    2    2    3    3  ]'; % index of the output this measurement refers to
+obs_list   = [1    1    2    2    3    3  ]'; % index of the output this measurement refers to
 times_list    = [0.1  1    0.1  1    0.1  1  ]';
 measurements = [0.6  0.4  1.5  1.3  0.4  0.6]';
 
@@ -77,15 +77,14 @@ y_names = x_names;
 ny = length(y_names);
 
 data = [];
-data.ny = ny;
-data.output_inds = output_list;
+data.obs_inds = obs_list;
 data.times = times_list;
 data.measurements = measurements;
 data.std_devs = measurements * 0.05;
 
 t_sens = unique(times_list);
 
-D = build_amici_data(data);
+D = build_amici_data(data, ny);
 opts = amioption('sensi', 1, 'sensi_meth', 'adjoint');
 
 % Simulate with adjoint sensitivities
@@ -104,13 +103,13 @@ disp(['Time to simulate with fwd sensitivities: ' num2str(toc) ])
 
 %% Fit data
 fit_opts = [];
-fit_opts.p0 = [4, 4]; % initial guess
+fit_opts.p0 = [1, 10]; % initial guess
 fit_opts.p_lo = [0.1, 0.1];
 fit_opts.p_hi = [10, 10];
 fit_opts.sens_method = 'fwd'; % or 'adj'
 fit_opts.verbose = 2; % or 0 for none, 1 for final only
 
-[p, G] = fit_eq_model(data, fit_opts);
+[p, G] = fit_eq_model(data, ny, fit_opts);
 
 opts = amioption('sensi', 0);
 

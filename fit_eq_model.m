@@ -1,7 +1,8 @@
-function [p, G, exit_flag, output] = fit_eq_model(data, fit_opts)
+function [p, G, exit_flag, output] = fit_eq_model(data, ny, fit_opts)
 % Fit equilibrium model
+% The ny is awkwardly inserted as an arg to specify the entire obs set
 
-data = build_amici_data(data);
+data = build_amici_data(data, ny);
 
 obj_fun_opts = [];
 obj_fun_opts.sens_method = fit_opts.sens_method;
