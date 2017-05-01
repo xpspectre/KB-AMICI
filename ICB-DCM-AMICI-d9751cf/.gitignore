@@ -214,6 +214,8 @@ src/symbolic_functions.o-bea7fd73
 
 src/amici.o-404f292d
 
+src/*.obj
+
 unitTests/sbml-test-suite/
 
 tests/sbml-test-suite/
