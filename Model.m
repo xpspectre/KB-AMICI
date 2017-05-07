@@ -26,6 +26,13 @@ classdef Model < handle
     
     methods
         function self = Model(name, dir)
+            % Construct new Model
+            %
+            % Inputs:
+            %   name [ string ]
+            %       Name of model
+            %   dir [ string ]
+            %       Directory to place model mex file and runner script
             if nargin == 0 % for superclass constructor
                 self.Name = '';
                 self.Directory = '';

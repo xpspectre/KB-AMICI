@@ -1,5 +1,5 @@
 function [x, y] = simulate_model(m, t, x0, p, opts)
-% Simulate Model
+% Simulate single Model
 %
 % Inputs:
 %   m [ Model ]
@@ -44,7 +44,7 @@ if ~isempty(x0)
     sim_opts.x0 = x0;
 end
 
-[status, ~, x, y, ~, ~] = m.model_fun(t, p);
+[status, ~, x, y, ~, ~] = m.model_fun(t, p, [], [], sim_opts);
 if status ~= 0
     error('Model integration failed')
 end
