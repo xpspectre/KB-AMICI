@@ -1,5 +1,6 @@
 function [p, G, exit_flag, output] = fit_model(m, data, opts)
-% Fit Model to data using observationLinearWeightedSumOfSquares-like objective function
+% Fit single Model to data using weighted sum of squares objective
+% function. Right now, this fits all model parameters.
 %
 % Notation: nd is the total number of datapoints/measurements
 %
@@ -18,7 +19,19 @@ function [p, G, exit_flag, output] = fit_model(m, data, opts)
 %           Std dev of each measurement
 %   opts [ struct ]
 %       Options struct with fields:
-%       .
+%       .verbose [ positive integer {1} ]
+%           How much info to display. 0 for none. 2 for detailed iteration
+%           data from optimizer.
+%       .sens_method [ {'fwd'} | 'adj' ]
+%           Forward or adjoint sensitivity calculation method. Forward is
+%           better tested and faster for smaller models. Adjoint is better
+%           for very large models.
+%       .p0 [ np double array ]
+%           Initial guesses for fit parameters
+%       .p_lo [ np double array ]
+%           Lower bounds for fit parameters
+%       .p_hi [ np double array ]
+%           Upper bounds for fit parameters
 %
 % Outputs:
 %   p [ 1 x np double vector ]

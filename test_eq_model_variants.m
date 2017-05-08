@@ -29,15 +29,16 @@ if build_model
 else
     loaded = load(model_file);
     m = loaded.m;
+    addpath(m.Directory);
 end
 
 %% Build 3 variants with different initial conditions
 nv = 3;
-A0 = [1.1, 2.1, 3.1]; % change initial A conc
+kfs = [1, 5, 10]; % change binding rate
 for iv = 1:nv
-    x0i = [m.States.InitialValue];
-    x0i(1) = A0(iv);
-    mvs(iv) = ModelVariant(sprintf('Eq%i',iv), m, x0i, []);
+    pi = [m.Parameters.Value];
+    pi(1) = kfs(iv);
+    mvs(iv) = ModelVariant(sprintf('Eq%i',iv), m, [], pi);
 end
 
 %% Simulate model
@@ -60,52 +61,77 @@ legend({m.States.Name})
 title('A + B <-> C Simulations')
 
 %% Generate some synthetic data to fit
-t_gen = [0, 0.1, 0.3, 0.5]';
-nt = length(t_gen);
+t_gen = [0.1, 0.3, 0.5]';
+nt_gen = length(t_gen);
 [~, ys_gen] = simulate_models(mvs, t_gen);
-obs_list = [];
-times_list = [];
-measurements = [];
 ny = 3;
+
+%% Fit data
+% Assemble Fit objects
+np = 2;
 for iv = 1:nv
+    obs_list = [];
+    times_list = [];
+    measurements = [];
     for iy = 1:ny
-        obs_list = [obs_list; repmat(iy,nt,1)];
+        obs_list = [obs_list; repmat(iy,nt_gen,1)];
         times_list = [times_list; t_gen];
         measurements = [measurements; ys_gen{iv}(:,iy)];
     end
+    
+    % Add some noise to the measurements
+    measurements = measurements + normrnd(0,0.05*measurements);
+    
+    data_i = [];
+    data_i.obs_inds = obs_list;
+    data_i.times = times_list;
+    data_i.measurements = measurements;
+    data_i.std_devs = measurements * 0.05;
+    
+    opts_i = [];
+    opts_i.p0 = [4, 4];
+    opts_i.p_lo = repmat(0,1,np);
+    opts_i.p_hi = repmat(10,1,np);
+    opts_i.p_fit = [iv, 1]; % kf is different, kr is shared
+    % Keep default sens_method = fwd
+    
+    fits(iv) = Fit(sprintf('Fit%i',iv), mvs(iv), data_i, opts_i);
 end
 
-%% Fit data
-% TODO: Start here
-data = [];
-data.obs_inds = obs_list;
-data.times = times_list;
-data.measurements = measurements;
-data.std_devs = measurements * 0.05;
-
+% Overall fit options
 fit_opts = [];
-fit_opts.p0 = [4, 4]; % initial guess
-fit_opts.p_lo = [0.1, 0.1];
-fit_opts.p_hi = [10, 10];
-fit_opts.sens_method = 'fwd'; % or 'adj'
 fit_opts.verbose = 2; % or 0 for none, 1 for final only
+% Keep default all weights = 1
 
-[p_fit, G, exit_flag, fit_output] = fit_model(m, data, fit_opts);
+% Do fit
+[ps_fit, G, exit_flag, fit_output] = fit_models(fits, fit_opts);
 
-x_fit = simulate_model(m, t, [], p_fit);
+% Simulate fit model results
+for iv = 1:nv
+    mvs_fit(iv) = ModelVariant(sprintf('FitEq%i',iv), m, [], ps_fit(:,iv));
+end
+[xs_fit, ys_fit] = simulate_models(mvs_fit, t);
 
 % Plot fits
 figure
 hold on
-plot(t, x)
-ax = gca;
-ax.ColorOrderIndex = 1;
-plot(times_list(1:2), reshape(measurements,2,3), '+')
-ax = gca;
-ax.ColorOrderIndex = 1;
-plot(t, x_fit, ':')
+for iv = 1:nv
+    ax = gca;
+    ax.ColorOrderIndex = 1;
+    plot(t, xs{iv})
+end
+for iv = 1:nv
+%     ax = gca;
+    ax.ColorOrderIndex = 1;
+    plot(fits(iv).Data.times(1:nt_gen), reshape(fits(iv).Data.measurements,nt_gen,ny), '+')
+end
+for iv = 1:nv
+%     ax = gca;
+    ax.ColorOrderIndex = 1;
+    plot(t, xs_fit{iv}, ':')
+end
 hold off
-legend('A','B','C','A data','B data','C data','A fit','B fit','C Fit')
+% legend('A','B','C','A data','B data','C data','A fit','B fit','C Fit')
 xlabel('Time')
 ylabel('Amount')
 title('A + B <-> C Fit')
