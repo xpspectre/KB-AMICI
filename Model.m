@@ -1,6 +1,8 @@
 classdef Model < handle
     % ODE kinetic model
     %
+    % Note: State initial value, initial condition, and IC are used interchangeably
+    %
     % TODO:
     % - dir path should probably generate the absolute path. If Model is called
     % from a script in another dir, alternatively fix path in caller.
@@ -20,7 +22,6 @@ classdef Model < handle
         np
         nr
         ny
-        sym_model
         model_fun
     end
     
@@ -52,6 +53,15 @@ classdef Model < handle
         end
         
         function AddState(self, name, initial_value)
+            % Add state
+            %
+            % Inputs:
+            %   name [ string ]
+            %       Name of state
+            %   initial_value [ double | string ]
+            %       State initial value. A double indicates a constant IC while
+            %       a string containing a symbolic expression indicates a
+            %       variable IC, possibly allowing fitting the contained params.
             ix = self.nx + 1;
             self.States(ix).Name = name;
             self.States(ix).InitialValue = initial_value;
@@ -59,6 +69,13 @@ classdef Model < handle
         end
         
         function AddParameter(self, name, value)
+            % Add parameter, including for state initial values
+            %
+            % Inputs:
+            %   name [ string ]
+            %       Name of parameter
+            %   initial_value [ double ]
+            %       Parameter value
             ip = self.np + 1;
             self.Parameters(ip).Name = name;
             self.Parameters(ip).Value = value;
@@ -124,13 +141,35 @@ classdef Model < handle
                 build_model = true;
             end
             
-            x_names = {self.States.Name};
-            x = sym(x_names);
-            x0 = {self.States.InitialValue};
+            if ~verLessThan('matlab', '9.0'); st = warning('off', 'symbolic:sym:sym:DeprecateExpressions'); end
             
+            % Parameters w/ sensitivities
             p_names = {self.Parameters.Name};
             p = sym(p_names);
             
+            % States and prep state ICs
+            x_names = {self.States.Name};
+            x = sym(x_names);
+            x_ics = cell(1,self.nx);
+            k_names = {}; % Each state with a bare IC gets a dummy constant
+            for ix = 1:self.nx
+                x0i = self.States(ix).InitialValue;
+                if ischar(x0i) % symbolic expression for IC
+                    x_ics{ix} = x0i;
+                elseif isnumeric(x0i) % bare IC
+                    k_name = [x_names{ix} '_0'];
+                    k_names = [k_names, k_name];
+                    x_ics{ix} = k_name;
+                end
+            end
+            
+            % Constants w/o sensitivities from bare ICs
+            k = sym(k_names);
+            
+            % State ICs
+            x0 = sym(x_ics);
+            
+            % Reactions
             S = zeros(self.nx,self.nr);
             v = sym('v', [self.nr,1]);
             for ir = 1:self.nr
@@ -149,25 +188,26 @@ classdef Model < handle
                 end
                 
                 rate = self.Reactions(ir).Rate;
-                
-                if ~verLessThan('matlab', '9.0'); st = warning('off', 'symbolic:sym:sym:DeprecateExpressions'); end
                 v(ir) = sym(rate); % this just works if state names are valid. Need a step of string subs if they're not.
-                if ~verLessThan('matlab', '9.0') && strcmp(st.state, 'on'); warning('on', 'symbolic:sym:sym:DeprecateExpressions'); end
             end
+            
+            if ~verLessThan('matlab', '9.0') && strcmp(st.state, 'on'); warning('on', 'symbolic:sym:sym:DeprecateExpressions'); end
+            
+            % ODE RHS
             xdot = S*v;
             
+            % Observations
             y_vals = {self.Observations.Value};
             y = sym(y_vals);
             
+            % Assemble model struct that AMICI expects
             model.sym.x = x;
-            model.sym.k = [];
+            model.sym.k = k;
             model.sym.event = [];
             model.sym.xdot = xdot;
             model.sym.p = p;
             model.sym.x0 = x0;
             model.sym.y = y;
-            % model.sym.sigma_y = [];
-            % model.sym.sigma_t = [];
             
             if ~exist(self.Directory, 'dir')
                 mkdir(self.Directory);

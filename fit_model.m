@@ -1,8 +1,7 @@
 function [p, G, exit_flag, output] = fit_model(m, data, opts)
 % Fit single Model to data using weighted sum of squares objective
-% function. Right now, this fits all model parameters.
-%
-% Notation: nd is the total number of datapoints/measurements
+% function. You can specify which parameters to fit, but non-fit params will be
+% set to the model defaults.
 %
 % Inputs:
 %   m [ Model ]
@@ -28,14 +27,17 @@ function [p, G, exit_flag, output] = fit_model(m, data, opts)
 %           for very large models.
 %       .p0 [ np double array ]
 %           Initial guesses for fit parameters
-%       .p_lo [ np double array ]
+%       .p_lo [ np double array {-inf(1,np)} ]
 %           Lower bounds for fit parameters
-%       .p_hi [ np double array ]
+%       .p_hi [ np double array {inf(1,np)} ]
 %           Upper bounds for fit parameters
+%       .p_fit [ np int array {ones(1,np)} ]
+%           Specification of fitting status. 0 in a position indicates don't
+%           fit; nonzero indicates fit. Default is to fit all parameters.
 %
 % Outputs:
 %   p [ 1 x np double vector ]
-%       Fit parameters
+%       Fit parameters, including those specified not to be fit.
 %   G [ scalar double ]
 %       Final objective function value
 %   exit_flag [ scalar integer ]
@@ -43,6 +45,31 @@ function [p, G, exit_flag, output] = fit_model(m, data, opts)
 %   output [ struct ]
 %       Detailed exit status info from optimizer
 
+% Default options
+opts_ = [];
+opts_.verbose = 1;
+opts_.sens_method = 'fwd';
+opts_.p0 = [m.Parameters.Value];
+np = length(opts_.p0);
+opts_.p_lo = -inf(1,np);
+opts_.p_hi = inf(1,np);
+opts_.p_fit = ones(1,np);
+opts = merge_structs(opts_, opts);
+
+% Build map of model params <-> fit params T
+p_fit = opts.p_fit ~= 0;
+p_inds = find(p_fit);
+nT = sum(p_fit);
+assert(length(opts.p0) == nT)
+assert(length(opts.p_lo) == nT)
+assert(length(opts.p_hi) == nT)
+
+% Assemble fit params
+T0 = opts.p0;
+T_lo = opts.p_lo;
+T_hi = opts.p_hi;
+
+% Assemble data
 data = build_amici_data(data, m.ny);
 
 obj_fun_opts = [];
@@ -58,11 +85,14 @@ switch opts.verbose
 end
 
 fit_opts = optimoptions('fmincon', 'SpecifyObjectiveGradient', true, 'Display', display);
-fun = @(p) obj_fun(p, m, data, obj_fun_opts);
-[p, G, exit_flag, output] = fmincon(fun, opts.p0, [], [], [], [], opts.p_lo, opts.p_hi, [], fit_opts);
+fun = @(T) obj_fun(T, m, data, p_inds, obj_fun_opts);
+[T, G, exit_flag, output] = fmincon(fun, T0, [], [], [], [], T_lo, T_hi, [], fit_opts);
+
+p = [m.Parameters.Value];
+p(p_inds) = T;
 end
 
-function [G, dGds] = obj_fun(p, m, data, obj_fun_opts)
+function [G, dGds] = obj_fun(T, m, data, p_inds, obj_fun_opts)
 % Objective function for fit
 opts = amioption('sensi', 1);
 switch obj_fun_opts.sens_method
@@ -72,10 +102,24 @@ switch obj_fun_opts.sens_method
         opts.sensi_meth = 'adjoint';
 end
 
-sol_sens = m.model_fun(data.t, p, [], data, opts);
+% Get all model params for fit
+p = [m.Parameters.Value];
+p(p_inds) = T;
+
+% Get constant ICs
+k = [];
+for ix = 1:m.nx
+    if isnumeric(m.States(ix).InitialValue)
+        k = [k, m.States(ix).InitialValue];
+    end
+end
+
+% Simulate
+sol_sens = m.model_fun(data.t, p, k, data, opts);
 if sol_sens.status ~= 0
     error('Sensitivity simulation returned non-zero exit status')
 end
+
 G = -sol_sens.llh; % obj fun is the negative log-likelihood
-dGds = -sol_sens.sllh; % and obj fun grad is also negated
+dGds = -sol_sens.sllh(p_inds); % and obj fun grad is also negated; only take fit params
 end

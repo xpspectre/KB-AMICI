@@ -23,7 +23,7 @@ if build_model
     m.AddObservation('B', 'B');
     m.AddObservation('C', 'C');
     
-    m.Finalize(); % single arg = false to suppress amiwrap
+    m.Finalize();
     
     save(model_file, 'm');
 else
@@ -79,7 +79,7 @@ for iv = 1:nv
         measurements = [measurements; ys_gen{iv}(:,iy)];
     end
     
-    % Add some noise to the measurements
+    % Add some noise to the measurements - part of data generation
     measurements = measurements + normrnd(0,0.05*measurements);
     
     data_i = [];
@@ -103,10 +103,10 @@ fit_opts = [];
 fit_opts.verbose = 2; % or 0 for none, 1 for final only
 % Keep default all weights = 1
 
-% Do fit
+%% Do fit
 [ps_fit, G, exit_flag, fit_output] = fit_models(fits, fit_opts);
 
-% Simulate fit model results
+%% Simulate fit model results
 for iv = 1:nv
     mvs_fit(iv) = ModelVariant(sprintf('FitEq%i',iv), m, [], ps_fit(:,iv));
 end
@@ -121,12 +121,10 @@ for iv = 1:nv
     plot(t, xs{iv})
 end
 for iv = 1:nv
-%     ax = gca;
     ax.ColorOrderIndex = 1;
     plot(fits(iv).Data.times(1:nt_gen), reshape(fits(iv).Data.measurements,nt_gen,ny), '+')
 end
 for iv = 1:nv
-%     ax = gca;
     ax.ColorOrderIndex = 1;
     plot(t, xs_fit{iv}, ':')
 end

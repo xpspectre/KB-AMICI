@@ -19,14 +19,15 @@ if build_model
     addpath(model_dir);
 end
 
-%% Simulate model - specify all p only
+%% Simulate model - specify all p and k
 % Result: Fills ICs in A0, B01+B02 as specified by p
 nt = 51;
 t = linspace(0, 1, nt);
-p = [5, 3, 2.2, 1.1, 3.3];
+p = [5, 3, 2.2, 1.05, 3.3];
+k = [0.25];
 
 tic
-sol = simulate_eq_model_fit_ic(t, p);
+sol = simulate_eq_model_fit_ic(t, p, k);
 disp(['Time to simulate: ' num2str(toc)])
 
 % Plot states
@@ -37,13 +38,13 @@ ylabel('Conc')
 legend('A','B','C')
 title('A + B <-> C Simulation')
 
-%% Simulate model - specify all p and override x0
-% Result: Overrides all initial conditions, including ignoring ICs specified by p
+%% Simulate model - specify p and k and override x0
+% Result: p and k that affect ICs are ignored. x0 vals directly become starting states
 opts = amioption('sensi', 0);
 opts.x0 = [1,3,0]'; % Actually must be a col vector (doc is wrong)
 
 tic
-sol = simulate_eq_model_fit_ic(t, p, [], [], opts);
+sol = simulate_eq_model_fit_ic(t, p, k, [], opts);
 disp(['Time to simulate: ' num2str(toc)])
 
 % Plot states
@@ -59,7 +60,7 @@ title('A + B <-> C Simulation')
 opts = amioption('sensi', 1);
 
 tic
-sol_sens_1 = simulate_eq_model_fit_ic(t, p, [], [], opts);
+sol_sens_1 = simulate_eq_model_fit_ic(t, p, k, [], opts);
 disp(['Time to simulate: ' num2str(toc)])
 
 %% Simulate with sensitivities - with x0 override
@@ -67,7 +68,7 @@ opts = amioption('sensi', 1);
 opts.x0 = [1,3,0]';
 
 tic
-sol_sens_2 = simulate_eq_model_fit_ic(t, p, [], [], opts);
+sol_sens_2 = simulate_eq_model_fit_ic(t, p, k, [], opts);
 disp(['Time to simulate: ' num2str(toc)])
 
 % Plot sensitivities wrt params that control ICs - comparison

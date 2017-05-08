@@ -43,11 +43,14 @@ classdef Fit < handle
             %           Lower bounds for fit parameters
             %       .p_hi [ np double array {inf(1,np)} ]
             %           Upper bounds for fit parameters
-            %       .p_fit [ np int array {1:np} ]
+            %       .p_fit [ np int array {ones(1,np)} ]
             %           Specification of fitting status. 0 in a position
             %           indicates don't fit. Nonzero integers indicate fit,
             %           sharing the same value as parameters in other
-            %           models with the same integer.
+            %           models with the same integer. Default is to fit all
+            %           parameters, and if there are multiple models, to
+            %           make them share the parameter (all 1 across models for
+            %           each param).
             if nargin == 0 % for superclass constructor
                 % Initialize everything to blank
                 return
@@ -68,7 +71,7 @@ classdef Fit < handle
             np = length(opts_.p0);
             opts_.p_lo = -inf(1,np);
             opts_.p_hi = inf(1,np);
-            opts_.p_fit = 1:np;
+            opts_.p_fit = ones(1,np);
             opts = merge_structs(opts_, opts);
             
             self.Name = name;
