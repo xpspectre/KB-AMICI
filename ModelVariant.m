@@ -22,7 +22,10 @@ classdef ModelVariant < handle
             %       Base model this modifies. Sanity checks will be done on
             %       x0 and p to make sure this ModelVariant is valid.
             %   x0 [ nx double array {[]} ]
-            %       State initial values to override model's
+            %       Constant state initial values to override model's. Specify
+            %       x0 for all states, but only the values corresponding to
+            %       constant ICs (not ones specified by expression) will be
+            %       used.
             %   p [ np double array {[]} ]
             %       Parameter values to override model's
             if nargin == 0 % for superclass constructor

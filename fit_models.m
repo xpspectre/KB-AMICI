@@ -173,23 +173,39 @@ for im = 1:nm
     end
     
     % Get per-fit parameters
-    %   Use existing params as base; override with fit params from T
     switch class(fits(im).Model)
         case 'Model'
-            p = [fits(im).Model.Parameters.Value];
+            model = fits(im).Model;
+            p = [model.Parameters.Value];
         case 'ModelVariant'
+            model = fits(im).Model.Model;
             p = fits(im).Model.Parameters;
     end
+    nx = model.nx;
+    
+    % Use existing params as base; override with fit params from T
     ps_i = ps(:,im);
     p_fit_i = fits(im).Opts.p_fit ~= 0;
     p(p_fit_i) = ps_i(p_fit_i);
     
-    switch class(fits(im).Model)
-        case 'Model'
-            sol_sens = fits(im).Model.model_fun(data(im).t, p, [], data(im), opts);
-        case 'ModelVariant'
-            sol_sens = fits(im).Model.Model.model_fun(data(im).t, p, [], data(im), opts);
+    % Get constant ICs
+    ic_is_const = false(nx,1);
+    ic_const = zeros(nx,1);
+    for ix = 1:nx
+        if isnumeric(model.States(ix).InitialValue)
+            ic_is_const(ix) = true;
+            switch class(fits(im).Model)
+                case 'Model'
+                    ic_const(ix) = model.States(ix).InitialValue;
+                case 'ModelVariant'
+                    ic_const(ix) = fits(im).Model.StateInitialValues(ix);
+            end
+        end
     end
+    k = ic_const(ic_is_const);
+    
+    % Simulate with sensitivities
+    sol_sens = model.model_fun(data(im).t, p, k, data(im), opts);
     if sol_sens.status ~= 0
         error('Sensitivity simulation returned non-zero exit status')
     end

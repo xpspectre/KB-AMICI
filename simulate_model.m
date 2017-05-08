@@ -19,7 +19,8 @@ function [x, y] = simulate_model(m, t, x0, p, opts)
 %           derived from p for states whose ICs are expressions. false means x0
 %           values apply to states with constant ICs and states with expression
 %           ICs come from specified parameters. true means override all state
-%           ICs with the specified x0 values.
+%           ICs with the specified x0 values. This is a hack - setting p is
+%           probably the way to go in normal usage.
 %
 % Outputs:
 %   x [ nt x nx double matrix ]

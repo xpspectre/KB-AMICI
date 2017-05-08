@@ -3,7 +3,7 @@ clear; close all; clc
 rng('default');
 
 %% Build model
-build_model = false;
+build_model = true;
 model_name = 'eq_model_1';
 model_dir = '_eq_model_1';
 model_file = [model_dir '/model_file.mat'];

@@ -44,16 +44,35 @@ sim_opts = amioption('sensi', 0);
 xs = cell(nm,1);
 ys = cell(nm,1);
 for im = 1:nm
+    % Get components from Models and ModelVariants
     switch class(m)
         case 'Model'
-            p_i = [m(im).Parameters.Value];
-            [status, ~, x, y, ~, ~] = m(im).model_fun(t{im}, p_i, [], [], sim_opts);
+            model = m(im);
+            p = [model.Parameters.Value];
         case 'ModelVariant'
-            p_i = m(im).Parameters;
-            sim_opts_i = sim_opts;
-            sim_opts_i.x0 = m(im).StateInitialValues(:);
-            [status, ~, x, y, ~, ~] = m(im).Model.model_fun(t{im}, p_i, [], [], sim_opts_i);
+            model = m(im).Model;
+            p = m(im).Parameters;
     end
+    nx = model.nx;
+    
+    % Get constant ICs
+    ic_is_const = false(nx,1);
+    ic_const = zeros(nx,1);
+    for ix = 1:nx
+        if isnumeric(model.States(ix).InitialValue)
+            ic_is_const(ix) = true;
+            switch class(m)
+                case 'Model'
+                    ic_const(ix) = model.States(ix).InitialValue;
+                case 'ModelVariant'
+                    ic_const(ix) = m(im).StateInitialValues(ix);
+            end
+        end
+    end
+    k = ic_const(ic_is_const);
+    
+    % Simulate
+    [status, ~, x, y, ~, ~] = model.model_fun(t{im}, p, k, [], sim_opts);
     if status ~= 0
         error('Model integration failed')
     end
